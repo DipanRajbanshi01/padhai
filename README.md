@@ -107,4 +107,16 @@ The brand name is a single constant in [`src/lib/site.ts`](src/lib/site.ts) — 
 ## Status
 
 - **Phase 0 — Scaffold ✅**: Next.js + TS + Tailwind + Prisma, design tokens + fonts, homepage, full schema, seed script.
-- Phase 1 — Catalog + Auth (next).
+- **Phase 1 — Catalog + Auth ✅**:
+  - Supabase auth (email/password + Google), session `proxy` (middleware), route guards.
+  - Phone-OTP flow scaffolded (`OtpCode` table + `/auth/otp`), shows "not enabled" until an SMS provider is wired.
+  - Onboarding (track / goal) + profile upsert; session-aware header with logout.
+  - Catalog `/courses` with track + free/paid filters and course/lesson search; course detail `/courses/[slug]` with syllabus, instructor, free-preview, and free enrollment.
+  - Student `/dashboard` (enrolled courses). Placeholders for `/mock-tests`, `/papers`, `/pricing` (later phases).
+- Phase 2 — Learning (video player, lesson progress) — next.
+
+### Auth setup note
+
+For email/password and Google to work locally you must, in the Supabase dashboard:
+1. **Authentication → Providers** — enable Email (turn off "Confirm email" for quick local testing) and Google (add OAuth client id/secret).
+2. **Authentication → URL Configuration** — add `http://localhost:3000/auth/callback` as a redirect URL.

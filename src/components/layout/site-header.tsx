@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { LayoutDashboard, LogOut } from "lucide-react";
 import { BrandWordmark } from "@/components/brand-wordmark";
 import { Button } from "@/components/ui/button";
+import { getAuthUser } from "@/lib/auth";
+import { signOut } from "@/app/auth/actions";
 
 const NAV = [
   { href: "/courses", label: "Courses" },
@@ -9,7 +12,9 @@ const NAV = [
   { href: "/pricing", label: "Pricing" },
 ];
 
-export function SiteHeader() {
+export async function SiteHeader() {
+  const user = await getAuthUser();
+
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-paper/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-4 sm:px-6">
@@ -28,14 +33,32 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Link href="/auth/login" className="hidden sm:block">
-            <Button variant="ghost" size="sm">
-              Log in
-            </Button>
-          </Link>
-          <Link href="/auth/signup">
-            <Button size="sm">Get started</Button>
-          </Link>
+          {user ? (
+            <>
+              <Link href="/dashboard" className="hidden sm:block">
+                <Button variant="ghost" size="sm">
+                  <LayoutDashboard /> Dashboard
+                </Button>
+              </Link>
+              <form action={signOut}>
+                <Button variant="outline" size="sm" type="submit" aria-label="Log out">
+                  <LogOut />
+                  <span className="hidden sm:inline">Log out</span>
+                </Button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Link href="/auth/login" className="hidden sm:block">
+                <Button variant="ghost" size="sm">
+                  Log in
+                </Button>
+              </Link>
+              <Link href="/auth/signup">
+                <Button size="sm">Get started</Button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>
