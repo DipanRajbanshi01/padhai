@@ -1,36 +1,110 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Padhai पढाइ
 
-## Getting Started
+Online recorded courses + CBT mock tests for Nepali students — SEE, +2 (Science / Management), and the major entrances (IOE, CEE, CSIT, CMAT).
 
-First, run the development server:
+The **mock-test engine is the core feature**: timed CBT runner with a question palette, KaTeX math, per-question images, instant scoring, and topic-wise result analysis.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Tech stack
+
+| Layer | Choice |
+| --- | --- |
+| Framework | Next.js 16 (App Router) + TypeScript (strict) |
+| Styling | Tailwind CSS v4 (tokens in `globals.css`) |
+| UI primitives | shadcn/ui conventions (`cn`, CVA `Button`) |
+| Database | PostgreSQL via **Supabase** |
+| ORM | Prisma 6 |
+| Auth / Storage | Supabase Auth (email + Google now; phone OTP later) + Supabase Storage |
+| Video | YouTube unlisted (MVP) — only `videoUrl` is stored |
+| Math | KaTeX |
+| Payments | eSewa + Khalti (server-verified) — Phase 4 |
+| Deploy | Vercel + managed Postgres (Supabase) |
+
+> Scope: building **MVP Phases 0–4** (scaffold → catalog+auth → learning → mock-test engine → payments). Admin panel, i18n, papers library and polish (Phases 5–6) come after.
+
+## Project layout
+
+```
+src/
+  app/                 App Router routes (homepage built; more per phase)
+  components/
+    layout/            SiteHeader, SiteFooter
+    ui/                shadcn-style primitives (Button)
+    scroll-reveal.tsx  IntersectionObserver reveal animation
+    brand-wordmark.tsx "Padhai पढाइ" wordmark
+  lib/
+    site.ts            Single brand/site config constant (rename brand here)
+    tracks.ts          Canonical Track→Subject taxonomy (shared by seed + UI)
+    utils.ts           cn(), formatNpr()
+    db.ts              Prisma client singleton
+prisma/
+  schema.prisma        Full data model (catalog, mock engine, payments, OTP)
+  seed.ts              Demo catalog: tracks + courses + a free mock per track
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Getting started
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 1. Install
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+```
 
-## Learn More
+### 2. Environment
 
-To learn more about Next.js, take a look at the following resources:
+Copy the example and fill in your values:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+cp .env.example .env
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Create a **Supabase** project, then from **Project Settings → Database** copy:
 
-## Deploy on Vercel
+- `DATABASE_URL` — the **Transaction pooler** string (port 6543, append `?pgbouncer=true`). Used by the app at runtime.
+- `DIRECT_URL` — the **direct/session** string (port 5432). Used by Prisma Migrate.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+And from **Project Settings → API**:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
+
+Payment + SMS keys are placeholders for now (Phase 4 / OTP wiring) — sandbox eSewa values are pre-filled and safe.
+
+### 3. Database
+
+```bash
+npm run db:generate   # generate Prisma client
+npm run db:push       # create tables in Supabase (or db:migrate for migrations)
+npm run db:seed       # load demo catalog (8 tracks, courses, a free mock each)
+```
+
+> The seed wipes + repopulates the catalog/attempt tables — **dev only**.
+> Demo logins seeded: `student@padhai.test`, `admin@padhai.test`.
+
+### 4. Run
+
+```bash
+npm run dev           # http://localhost:3000
+```
+
+## Scripts
+
+| Script | Purpose |
+| --- | --- |
+| `npm run dev` | Dev server |
+| `npm run build` / `start` | Production build / serve |
+| `npm run lint` / `typecheck` | ESLint / `tsc --noEmit` |
+| `npm run db:generate` | Generate Prisma client |
+| `npm run db:push` | Push schema to DB (no migration history) |
+| `npm run db:migrate` | Create + apply a migration |
+| `npm run db:seed` | Seed demo data |
+| `npm run db:studio` | Prisma Studio |
+
+## Design system
+
+Warm, scholarly palette (brief §5) lives in [`src/app/globals.css`](src/app/globals.css) as Tailwind v4 `@theme` tokens — use `bg-paper`, `text-crimson`, `rounded-card`, `shadow-soft`, etc. Fonts: **Fraunces** (display), **Hanken Grotesk** (body), **Tiro Devanagari Hindi** (नेपाली), loaded via `next/font` in `layout.tsx`.
+
+The brand name is a single constant in [`src/lib/site.ts`](src/lib/site.ts) — change it there only.
+
+## Status
+
+- **Phase 0 — Scaffold ✅**: Next.js + TS + Tailwind + Prisma, design tokens + fonts, homepage, full schema, seed script.
+- Phase 1 — Catalog + Auth (next).

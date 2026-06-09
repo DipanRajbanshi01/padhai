@@ -1,0 +1,415 @@
+// Padhai data model — brief §7, refined.
+// Taxonomy: Track → Subject → Course → Chapter → Lesson, plus a parallel
+// MockTest → Question → QuestionOption structure, payments, and OTP-ready auth.
+//
+// Auth note: Supabase Auth owns credentials (email/Google now, phone OTP later).
+// `User` here is the application PROFILE, keyed by the Supabase auth user id.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooled connection (Supabase PgBouncer, ?pgbouncer=true) for the app.
+  url       = env("DATABASE_URL")
+  // Direct connection for migrations.
+  directUrl = env("DIRECT_URL")
+}
+
+/* ----------------------------- Enums ----------------------------- */
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+  SUPERADMIN
+}
+
+enum TrackKind {
+  SCHOOL
+  ENTRANCE
+  BRIDGE
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  REFUNDED
+  CANCELLED
+}
+
+enum EnrollmentSource {
+  PURCHASE
+  BUNDLE
+  FREE
+  ADMIN_GRANT
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTI_SELECT
+  NUMERIC
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EXPIRED
+  ABANDONED
+}
+
+enum PaymentGateway {
+  ESEWA
+  KHALTI
+  IME_PAY
+  CARD
+  FREE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum ProductType {
+  COURSE
+  BUNDLE
+}
+
+enum PaperType {
+  PAST
+  MODEL
+}
+
+enum OtpPurpose {
+  SIGNUP
+  LOGIN
+  VERIFY_PHONE
+}
+
+/* ----------------------------- Auth / users ----------------------------- */
+
+model User {
+  id         String   @id @default(uuid()) // matches Supabase auth.users.id
+  email      String?  @unique
+  phone      String?  @unique
+  name       String?
+  role       Role     @default(STUDENT)
+  // Onboarding profile (brief §3 "Auth & accounts")
+  classTrack String? // e.g. "SEE", "PLUS2_SCIENCE" — references Track.code, kept loose
+  targetExam String?
+  location   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  enrollments    Enrollment[]
+  lessonProgress LessonProgress[]
+  attempts       Attempt[]
+  payments       Payment[]
+
+  @@index([role])
+}
+
+/// One-time passcodes for phone OTP. Wired now so the SMS provider can be
+/// dropped in later without a migration. Codes are stored hashed.
+model OtpCode {
+  id        String     @id @default(cuid())
+  phone     String
+  codeHash  String
+  purpose   OtpPurpose @default(LOGIN)
+  expiresAt DateTime
+  consumedAt DateTime?
+  attempts  Int        @default(0)
+  createdAt DateTime   @default(now())
+
+  @@index([phone, purpose])
+}
+
+/* ----------------------------- Catalog taxonomy ----------------------------- */
+
+model Track {
+  id    String    @id @default(cuid())
+  code  String    @unique // SEE, PLUS2_SCIENCE, IOE, ...
+  title String
+  short String
+  blurb String?
+  kind  TrackKind @default(SCHOOL)
+  order Int       @default(0)
+
+  subjects  Subject[]
+  mockTests MockTest[]
+  bundles   Bundle[]
+
+  @@index([order])
+}
+
+model Subject {
+  id      String @id @default(cuid())
+  trackId String
+  track   Track  @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  title   String
+  order   Int    @default(0)
+
+  courses   Course[]
+  mockTests MockTest[]
+  papers    Paper[]
+
+  @@unique([trackId, title])
+  @@index([trackId])
+}
+
+model Course {
+  id             String   @id @default(cuid())
+  subjectId      String
+  subject        Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  slug           String   @unique
+  title          String
+  description    String?
+  priceNpr       Int      @default(0)
+  isFree         Boolean  @default(false)
+  instructorName String?
+  instructorBio  String?
+  coverImageUrl  String?
+  level          String? // e.g. "Class 10", "Class 12"
+  order          Int      @default(0)
+  published      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  chapters       Chapter[]
+  enrollments    Enrollment[]
+  bundleCourses  BundleCourse[]
+  payments       Payment[]
+
+  @@index([subjectId])
+}
+
+model Chapter {
+  id       String  @id @default(cuid())
+  courseId String
+  course   Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title    String
+  order    Int     @default(0)
+
+  lessons Lesson[]
+
+  @@index([courseId])
+}
+
+model Lesson {
+  id            String  @id @default(cuid())
+  chapterId     String
+  chapter       Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  title         String
+  videoUrl      String? // external host (YouTube unlisted for MVP); never a file blob
+  durationSec   Int     @default(0)
+  isFreePreview Boolean @default(false)
+  content       String? // optional notes/markdown shown beside the video
+  order         Int     @default(0)
+
+  progress LessonProgress[]
+
+  @@index([chapterId])
+}
+
+/* ----------------------------- Bundles (per-track packages) ----------------------------- */
+
+model Bundle {
+  id          String   @id @default(cuid())
+  trackId     String?
+  track       Track?   @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  slug        String   @unique
+  title       String
+  description String?
+  priceNpr    Int      @default(0)
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  courses  BundleCourse[]
+  payments Payment[]
+
+  @@index([trackId])
+}
+
+model BundleCourse {
+  bundleId String
+  bundle   Bundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([bundleId, courseId])
+  @@index([courseId])
+}
+
+/* ----------------------------- Enrollment & progress ----------------------------- */
+
+model Enrollment {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  status    EnrollmentStatus @default(ACTIVE)
+  source    EnrollmentSource @default(PURCHASE)
+  createdAt DateTime         @default(now())
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+model LessonProgress {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId       String
+  lesson         Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  secondsWatched Int      @default(0)
+  completed      Boolean  @default(false)
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+}
+
+/* ----------------------------- Mock-test engine (the core) ----------------------------- */
+
+model MockTest {
+  id               String   @id @default(cuid())
+  trackId          String
+  track            Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  subjectId        String?
+  subject          Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  slug             String   @unique
+  title            String
+  description      String?
+  durationMin      Int      @default(60)
+  // Negative marking as a fraction of the question's marks (e.g. 0.25). 0 = none.
+  negativeMarking  Float    @default(0)
+  defaultMarks     Int      @default(1)
+  isFree           Boolean  @default(false)
+  published        Boolean  @default(true)
+  order            Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  questions Question[]
+  attempts  Attempt[]
+
+  @@index([trackId])
+  @@index([subjectId])
+}
+
+model Question {
+  id           String       @id @default(cuid())
+  mockTestId   String
+  mockTest     MockTest     @relation(fields: [mockTestId], references: [id], onDelete: Cascade)
+  order        Int          @default(0)
+  type         QuestionType @default(SINGLE_CHOICE)
+  body         String // supports KaTeX ($...$) + plain text
+  imageUrl     String? // per-question diagram (physics/chemistry)
+  explanation  String?
+  marks        Int          @default(1)
+  negativeMarks Float?      // overrides MockTest.negativeMarking if set
+  topic        String? // for topic-wise result breakdown
+
+  options QuestionOption[]
+  answers AttemptAnswer[]
+
+  @@index([mockTestId])
+}
+
+model QuestionOption {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  body       String
+  isCorrect  Boolean  @default(false)
+  order      Int      @default(0)
+
+  @@index([questionId])
+}
+
+model Attempt {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mockTestId    String
+  mockTest      MockTest      @relation(fields: [mockTestId], references: [id], onDelete: Cascade)
+  status        AttemptStatus @default(IN_PROGRESS)
+  startedAt     DateTime      @default(now())
+  // Hard deadline = startedAt + durationMin; used to auto-expire abandoned attempts.
+  expiresAt     DateTime
+  submittedAt   DateTime?
+  score         Float?
+  maxScore      Float?
+  // Ephemeral UI recovery (current question, remaining seconds) for crash/refresh.
+  autosaveState Json?
+
+  answers AttemptAnswer[]
+
+  @@index([userId])
+  @@index([mockTestId])
+}
+
+model AttemptAnswer {
+  id              String   @id @default(cuid())
+  attemptId       String
+  attempt         Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId      String
+  question        Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  // Chosen option ids (1 for single-choice, many for multi-select). Source of
+  // truth + autosave: upserted on every answer so a disconnect never loses work.
+  chosenOptionIds String[]
+  numericAnswer   Float?
+  markedForReview Boolean  @default(false)
+  timeSpentSec    Int      @default(0)
+  isCorrect       Boolean?
+  updatedAt       DateTime @updatedAt
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+}
+
+/* ----------------------------- Payments ----------------------------- */
+
+model Payment {
+  id          String         @id @default(cuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productType ProductType
+  courseId    String?
+  course      Course?        @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  bundleId    String?
+  bundle      Bundle?        @relation(fields: [bundleId], references: [id], onDelete: SetNull)
+  gateway     PaymentGateway
+  amountNpr   Int
+  status      PaymentStatus  @default(PENDING)
+  gatewayRef  String? // transaction id / pidx from eSewa / Khalti
+  raw         Json? // full gateway verification payload for audit
+  createdAt   DateTime       @default(now())
+  paidAt      DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@index([gatewayRef])
+}
+
+/* ----------------------------- Past / model papers ----------------------------- */
+
+model Paper {
+  id            String    @id @default(cuid())
+  subjectId     String
+  subject       Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  year          Int?
+  title         String
+  pdfUrl        String
+  type          PaperType @default(PAST)
+  downloadCount Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  @@index([subjectId])
+}

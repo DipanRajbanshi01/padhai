@@ -1,26 +1,103 @@
 @import "tailwindcss";
 
+/*
+ * Padhai design system — see brief §5.
+ * Warm, scholarly, confident. Deliberately NOT sterile-blue ed-tech.
+ * Tailwind v4: design tokens are declared in @theme so they become
+ * utility classes (e.g. bg-paper, text-crimson, rounded-card).
+ */
+@theme {
+  /* Palette */
+  --color-paper: #fbf6ec; /* background */
+  --color-paper-2: #f3eadb; /* alt section bg */
+  --color-ink: #201c17; /* primary text */
+  --color-ink-soft: #5c554c; /* secondary text */
+  --color-crimson: #c5132e; /* primary brand (Nepal flag crimson) */
+  --color-crimson-deep: #9e0e24;
+  --color-marigold: #f2a516; /* accent */
+  --color-deep: #16314a; /* secondary deep / ink-blue */
+  --color-teal: #1f7a5c; /* success / progress */
+  --color-line: #e4d8c4; /* borders */
+
+  /* Fonts (wired to next/font CSS variables in layout.tsx) */
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  --font-devanagari: var(--font-tiro-devanagari), serif;
+
+  /* Radii — rounded cards (~18px) per spec */
+  --radius-card: 18px;
+  --radius-pill: 999px;
+
+  /* Soft shadows */
+  --shadow-soft: 0 1px 2px rgba(32, 28, 23, 0.04), 0 8px 24px rgba(32, 28, 23, 0.06);
+  --shadow-lift: 0 2px 4px rgba(32, 28, 23, 0.05), 0 16px 40px rgba(32, 28, 23, 0.1);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  /* Devanagari text (नेपाली) uses Tiro Devanagari Hindi */
+  :lang(ne),
+  .font-devanagari {
+    font-family: var(--font-devanagari);
+  }
+
+  ::selection {
+    background: var(--color-marigold);
+    color: var(--color-ink);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/*
+ * Staggered scroll-reveal. Elements with [data-reveal] start hidden and
+ * animate in when .is-visible is added by the IntersectionObserver in
+ * <ScrollReveal/>. Respects reduced-motion.
+ */
+@layer utilities {
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(16px);
+    transition:
+      opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
+  }
+
+  [data-reveal].is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-reveal] {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+  }
 }
