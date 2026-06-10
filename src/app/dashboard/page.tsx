@@ -31,6 +31,13 @@ export default async function DashboardPage() {
     ),
   );
 
+  const recentAttempts = await db.attempt.findMany({
+    where: { userId: profile.id, status: "SUBMITTED" },
+    orderBy: { submittedAt: "desc" },
+    take: 5,
+    include: { mockTest: { include: { track: true } } },
+  });
+
   const track = profile.classTrack ? TRACK_BY_CODE[profile.classTrack as TrackCode] : undefined;
   const firstName = profile.name?.split(" ")[0] ?? "there";
 
@@ -120,24 +127,62 @@ export default async function DashboardPage() {
         )}
       </section>
 
-      {/* Mock tests shortcut (engine lands in Phase 3) */}
+      {/* Mock test history */}
       <section className="mt-12">
-        <div className="flex items-center gap-3 rounded-card border border-line bg-paper-2 p-6">
-          <div className="flex size-11 items-center justify-center rounded-card bg-crimson/10 text-crimson">
-            <Timer className="size-5" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-display text-base font-semibold text-ink">Practise with a mock test</h3>
-            <p className="text-sm text-ink-soft">
-              Sit a free, full-length CBT and get scored instantly.
-            </p>
-          </div>
-          <Link href="/mock-tests">
-            <Button size="sm">
-              Mock tests <ArrowRight />
-            </Button>
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-xl font-semibold text-ink">Mock test history</h2>
+          <Link href="/mock-tests" className="text-sm font-medium text-crimson hover:underline">
+            Take a test
           </Link>
         </div>
+
+        {recentAttempts.length === 0 ? (
+          <div className="mt-4 flex items-center gap-3 rounded-card border border-line bg-paper-2 p-6">
+            <div className="flex size-11 items-center justify-center rounded-card bg-crimson/10 text-crimson">
+              <Timer className="size-5" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-display text-base font-semibold text-ink">No attempts yet</h3>
+              <p className="text-sm text-ink-soft">
+                Sit a free, full-length CBT and get scored instantly.
+              </p>
+            </div>
+            <Link href="/mock-tests">
+              <Button size="sm">
+                Mock tests <ArrowRight />
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-4 overflow-hidden rounded-card border border-line bg-paper shadow-soft">
+            {recentAttempts.map((a) => {
+              const pct =
+                a.maxScore && a.maxScore > 0 ? Math.round(((a.score ?? 0) / a.maxScore) * 100) : 0;
+              return (
+                <Link
+                  key={a.id}
+                  href={`/results/${a.id}`}
+                  className="flex items-center gap-4 border-b border-line px-5 py-4 last:border-0 hover:bg-paper-2"
+                >
+                  <Badge variant="deep">{a.mockTest.track.short}</Badge>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-ink">{a.mockTest.title}</p>
+                    <p className="text-xs text-ink-soft">
+                      {a.submittedAt ? a.submittedAt.toLocaleDateString() : ""}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-display text-lg font-semibold text-ink">
+                      {a.score}
+                      <span className="text-sm text-ink-soft"> / {a.maxScore}</span>
+                    </p>
+                    <p className="text-xs font-medium text-teal">{pct}%</p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </section>
     </div>
   );

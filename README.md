@@ -118,7 +118,14 @@ The brand name is a single constant in [`src/lib/site.ts`](src/lib/site.ts) — 
   - Chapter/lesson sidebar with progress ticks + active highlight; lesson switching is client-side (no reload), URL stays shareable via `?lesson=`.
   - Throttled autosave (every ~10s + on pause/seek/unmount) to `LessonProgress`; lessons auto-complete at ~95% watched, plus a manual complete toggle.
   - Real progress bars on `/dashboard`; enrolled CTAs now open the learn view.
-- Phase 3 — Mock-test engine (the core feature) — next.
+- **Phase 3 — Mock-test engine ✅** (the core feature):
+  - `/mock-tests` catalog + `/mock-tests/[slug]` instructions; start/resume an attempt.
+  - CBT runner (`/mock-tests/[slug]/attempt`): countdown timer, question palette (answered / marked / not-answered / not-visited), KaTeX math + per-question images, single & multi-select.
+  - **Refresh/disconnect-proof**: every answer + mark + per-question time autosaves to the DB; reloading restores answers and the live timer. Auto-submits when time runs out.
+  - Server-side scoring with **negative marking**; answers are **never sent to the client** during the test (`isCorrect` is stripped from the runner query).
+  - `/results/[attemptId]`: score, accuracy, time, **topic-wise breakdown**, and per-question review with correct answers + explanations.
+  - Mock-test history on the dashboard.
+- Phase 4 — Payments (eSewa + Khalti) — next.
 
 ### Auth setup note
 

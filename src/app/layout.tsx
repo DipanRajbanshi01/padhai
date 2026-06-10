@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Hanken_Grotesk, Tiro_Devanagari_Hindi } from "next/font/google";
 import "./globals.css";
+import "katex/dist/katex.min.css";
 import { site } from "@/lib/site";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
