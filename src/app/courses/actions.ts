@@ -30,5 +30,5 @@ export async function enrollFree(courseId: string): Promise<void> {
   });
 
   revalidatePath(`/courses/${course.slug}`);
-  redirect("/dashboard");
+  redirect(`/learn/${course.slug}`);
 }

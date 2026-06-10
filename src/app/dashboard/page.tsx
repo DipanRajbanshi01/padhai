@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { ArrowRight, BookOpen, Timer, Compass } from "lucide-react";
 import { db } from "@/lib/db";
 import { getCurrentProfile, isOnboarded } from "@/lib/auth";
+import { getCourseProgress } from "@/lib/learning";
 import { TRACK_BY_CODE, type TrackCode } from "@/lib/tracks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,15 @@ export default async function DashboardPage() {
     orderBy: { createdAt: "desc" },
     include: { course: { include: { subject: { include: { track: true } } } } },
   });
+
+  // Per-course completion for the progress bars.
+  const progressByCourse = new Map(
+    await Promise.all(
+      enrollments.map(
+        async (e) => [e.courseId, await getCourseProgress(profile.id, e.courseId)] as const,
+      ),
+    ),
+  );
 
   const track = profile.classTrack ? TRACK_BY_CODE[profile.classTrack as TrackCode] : undefined;
   const firstName = profile.name?.split(" ")[0] ?? "there";
@@ -69,24 +79,43 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {enrollments.map((e) => (
-              <div
-                key={e.id}
-                className="flex h-full flex-col rounded-card border border-line bg-paper p-5 shadow-soft"
-              >
-                <Badge variant="deep">{e.course.subject.track.short}</Badge>
-                <h3 className="mt-3 font-display text-base font-semibold text-ink">
-                  {e.course.title}
-                </h3>
-                <p className="mt-1 text-sm text-ink-soft">{e.course.subject.title}</p>
-                {/* Progress bars arrive with the player in Phase 2 */}
-                <Link href={`/courses/${e.course.slug}`} className="mt-auto pt-4">
-                  <Button variant="outline" size="sm" className="w-full">
-                    Open course
-                  </Button>
-                </Link>
-              </div>
-            ))}
+            {enrollments.map((e) => {
+              const prog = progressByCourse.get(e.courseId) ?? { completed: 0, total: 0, percent: 0 };
+              const started = prog.completed > 0;
+              return (
+                <div
+                  key={e.id}
+                  className="flex h-full flex-col rounded-card border border-line bg-paper p-5 shadow-soft"
+                >
+                  <Badge variant="deep">{e.course.subject.track.short}</Badge>
+                  <h3 className="mt-3 font-display text-base font-semibold text-ink">
+                    {e.course.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-ink-soft">{e.course.subject.title}</p>
+
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-xs text-ink-soft">
+                      <span>
+                        {prog.completed}/{prog.total} lessons
+                      </span>
+                      <span className="font-semibold text-teal">{prog.percent}%</span>
+                    </div>
+                    <div className="mt-1 h-2 w-full overflow-hidden rounded-pill bg-paper-2">
+                      <div
+                        className="h-full rounded-pill bg-teal transition-all"
+                        style={{ width: `${prog.percent}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <Link href={`/learn/${e.course.slug}`} className="mt-auto pt-4">
+                    <Button variant={started ? "primary" : "outline"} size="sm" className="w-full">
+                      {started ? "Continue" : "Start learning"}
+                    </Button>
+                  </Link>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

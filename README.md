@@ -113,7 +113,12 @@ The brand name is a single constant in [`src/lib/site.ts`](src/lib/site.ts) — 
   - Onboarding (track / goal) + profile upsert; session-aware header with logout.
   - Catalog `/courses` with track + free/paid filters and course/lesson search; course detail `/courses/[slug]` with syllabus, instructor, free-preview, and free enrollment.
   - Student `/dashboard` (enrolled courses). Placeholders for `/mock-tests`, `/papers`, `/pricing` (later phases).
-- Phase 2 — Learning (video player, lesson progress) — next.
+- **Phase 2 — Learning ✅**:
+  - `/learn/[courseSlug]` enrolled view: YouTube IFrame player with **resume-where-you-left-off**, **playback-speed** control, and **per-lesson completion** tracking.
+  - Chapter/lesson sidebar with progress ticks + active highlight; lesson switching is client-side (no reload), URL stays shareable via `?lesson=`.
+  - Throttled autosave (every ~10s + on pause/seek/unmount) to `LessonProgress`; lessons auto-complete at ~95% watched, plus a manual complete toggle.
+  - Real progress bars on `/dashboard`; enrolled CTAs now open the learn view.
+- Phase 3 — Mock-test engine (the core feature) — next.
 
 ### Auth setup note
 

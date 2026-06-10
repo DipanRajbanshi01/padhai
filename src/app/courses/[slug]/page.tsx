@@ -143,9 +143,9 @@ export default async function CourseDetailPage({
 
             <div className="mt-5">
               {isEnrolled ? (
-                <Link href="/dashboard" className="block">
+                <Link href={`/learn/${course.slug}`} className="block">
                   <Button size="lg" variant="deep" className="w-full">
-                    <CheckCircle2 /> You&apos;re enrolled — go to dashboard
+                    <CheckCircle2 /> Continue learning
                   </Button>
                 </Link>
               ) : course.isFree ? (
