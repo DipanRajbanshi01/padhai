@@ -155,7 +155,7 @@ export default async function CourseDetailPage({
                   </SubmitButton>
                 </form>
               ) : (
-                <Link href="/pricing" className="block">
+                <Link href={`/checkout?course=${course.slug}`} className="block">
                   <Button size="lg" className="w-full">
                     Enroll — {formatNpr(course.priceNpr)}
                   </Button>

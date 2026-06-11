@@ -125,7 +125,19 @@ The brand name is a single constant in [`src/lib/site.ts`](src/lib/site.ts) — 
   - Server-side scoring with **negative marking**; answers are **never sent to the client** during the test (`isCorrect` is stripped from the runner query).
   - `/results/[attemptId]`: score, accuracy, time, **topic-wise breakdown**, and per-question review with correct answers + explanations.
   - Mock-test history on the dashboard.
-- Phase 4 — Payments (eSewa + Khalti) — next.
+- **Phase 4 — Payments ✅**:
+  - `/pricing` (per-track bundles) + per-course "Enroll" → `/checkout` with an order summary.
+  - **eSewa** (ePay v2): HMAC-SHA256 signed form hand-off; success callback re-signs the returned payload and confirms the amount before granting access.
+  - **Khalti** (KPG-2): server-initiated `initiate` → hosted page → `lookup` verification on return (query status is never trusted).
+  - `fulfillPayment` is idempotent and **enrolls on success** (single course, or every course in a bundle); free tier still enrols without checkout. Success/failed receipt pages.
+  - Server-verified every time — see [src/lib/payments/](src/lib/payments/) and [src/app/api/payments/](src/app/api/payments/).
+- Phase 5+ (admin authoring, i18n, papers) — out of MVP scope for now.
+
+### Payments setup note
+
+- **eSewa** works against the public sandbox out of the box (test merchant `EPAYTEST`, values pre-filled in `.env.example`).
+- **Khalti** needs a **test secret key** from a Khalti merchant account — set `KHALTI_SECRET_KEY` (and keep `KHALTI_BASE_URL=https://dev.khalti.com`). Until then the Khalti button fails gracefully and suggests eSewa.
+- For real callbacks to reach you, `NEXT_PUBLIC_SITE_URL` must be a URL the gateway can redirect back to (localhost works for eSewa/Khalti test redirects in the browser).
 
 ### Auth setup note
 
