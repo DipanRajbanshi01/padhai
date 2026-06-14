@@ -7,6 +7,8 @@
 
 generator client {
   provider = "prisma-client-js"
+  // "native" for local dev; the rhel target is the engine Vercel's Linux build needs.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
